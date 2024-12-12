@@ -1,0 +1,159 @@
+# CPU Design with Opcode Instructions
+# Inputs
+M          8          # Input M
+N          8          # Input N
+progIN     13         # Program input
+reset      1          # Reset signal
+progLoad   1          # Program load signal
+start      1          # Start execution signal
+result     1          # Result signal
+clk        1          # Clock signal
+
+# Memory
+pRAM       256 x 13   # Program RAM (256 instructions, 13 bits each)
+rRAM       256 x 8    # Result RAM (256 results, 8 bits each)
+
+# Outputs
+valid      1           # Output valid signal
+done       1           # Output done signal
+output     8           # Output value (8 bits)
+sevenSeg1  7           # First 7-segment display
+sevenSeg2  7           # Second 7-segment display
+
+# Registers
+accA       8           # Accumulator A
+accB       8           # Accumulator B
+regC       8           # Register C
+equalFlag  1           # Equal flag
+greaterFlag 1          # Greater flag
+lesserFlag 1           # Lesser flag
+pc         8           # Program Counter
+
+# Synchronous logic triggered by positive edge of clk
+on rising edge of clk:
+    if reset == 1:
+        clear rRAM
+        valid = 0
+        done = 0
+        accA = 0
+        accB = 0
+        regC = 0
+        equalFlag = 0
+        greaterFlag = 0
+        lesserFlag = 0
+        pc = 0  # Initialize program counter
+    else:
+        # Instruction decoding based on Opcode
+        opcode = pRAM[pc][12:8]  # Assume pc is the program counter
+        operand = pRAM[pc][7:0]
+
+        case opcode:
+            00000:  # NOPE
+                # Do nothing, move to next instruction
+                pc += 1
+            00001:  # accA ← Operand
+                accA = operand
+                pc += 1
+            00010:  # accB ← Operand
+                accB = operand
+                pc += 1
+            00011:  # accA ← accB
+                accA = accB
+                pc += 1
+            00100:  # accB ← accA
+                accB = accA
+                pc += 1
+            00101:  # regC ← accA
+                regC = accA
+                pc += 1
+            00110:  # accA ← regC
+                accA = regC
+                pc += 1
+            00111:  # regC ← M
+                regC = M
+                pc += 1
+            01000:  # regC ← N
+                regC = N
+                pc += 1
+            01001:  # accA ← pRAM_adr[Operand]
+                accA = pRAM[operand][7:0]  # Read 8 bits
+                pc += 1
+            01010:  # accA ← rRAM_adr[Operand]
+                accA = rRAM[operand]
+                pc += 1
+            01011:  # rRAM_adr[Operand] ← accA
+                rRAM[operand] = accA
+                pc += 1
+            01100:  # Jump to address Operand
+                pc = operand
+            01101:  # Jump to address Operand if eq
+                if equalFlag == 1:
+                    pc = operand
+                else:
+                    pc += 1
+            01110:  # Jump to address Operand if gr
+                if greaterFlag == 1:
+                    pc = operand
+                else:
+                    pc += 1
+            01111:  # Jump to address Operand if le
+                if lesserFlag == 1:
+                    pc = operand
+                else:
+                    pc += 1
+            10000:  # Jump to address Operand if eq or gr
+                if equalFlag == 1 or greaterFlag == 1:
+                    pc = operand
+                else:
+                    pc += 1
+            10001:  # accA ← accA + accB
+                accA = (accA + accB) % 256
+                pc += 1
+            10010:  # accA ← accA - accB
+                accA = (accA - accB) % 256
+                pc += 1
+            10011:  # accA ← accA * accB
+                accA = (accA * accB) % 16  # Considering 4 bits
+                pc += 1
+            10100:  # accA ← accA / accB
+                accA = accA // accB
+                pc += 1
+            10101:  # accA ← accA % accB
+                accA = accA % accB
+                pc += 1
+            10110:  # accA ← accA ^ accB
+                accA = accA ^ accB
+                pc += 1
+            10111:  # accA CMP accB
+                equalFlag = (accA == accB)
+                greaterFlag = (accA > accB)
+                lesserFlag = (accA < accB)
+                pc += 1
+            11000:  # accA ← NOT(accA)
+                accA = ~accA & 0xFF
+                pc += 1
+            11001:  # accA ← accA AND accB
+                accA = accA & accB
+                pc += 1
+            11010:  # accA ← accA OR accB
+                accA = accA | accB
+                pc += 1
+            11011:  # accA ← accA XOR accB
+                accA = accA ^ accB
+                pc += 1
+            11100:  # accA ← accA << accB
+                accA = (accA << (accB & 0x07)) & 0xFF
+                pc += 1
+            11101:  # isPrime(accA)
+                if is_prime(accA):
+                    equalFlag = 1
+                else:
+                    equalFlag = 0
+                pc += 1
+            11110:  # FUTURE
+                # Future instruction (undefined for now)
+                pc += 1
+            11111:  # STOP
+                done = 1  # Stop execution, wait for result signal
+
+# End of design
